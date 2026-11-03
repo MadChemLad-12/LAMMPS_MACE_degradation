@@ -1,0 +1,24 @@
+UNITS LENGTH=A ENERGY=eV            # LAMMPS fix handles conversion; inputs in Å / eV
+
+pt_rest: GROUP ATOMS=@PT_EXCEPT_TARGET@
+carb:    GROUP ATOMS=@C@
+oall:    GROUP ATOMS=@O@            # all O (water, sulfonate, adsorbed)
+sulf:    GROUP ATOMS=@S@
+
+# --- biased CVs: dissolution of one chosen Pt atom ---
+cn_ptpt: COORDINATION GROUPA=@TARGET@ GROUPB=pt_rest R_0=3.3 NN=6 MM=12
+cn_pto:  COORDINATION GROUPA=@TARGET@ GROUPB=oall    R_0=2.7 NN=6 MM=12
+
+# --- monitored only (reweight later) ---
+cc:      CENTER ATOMS=carb
+dz:      DISTANCE ATOMS=@TARGET@,cc COMPONENTS      # use dz.z (height above graphene)
+dS:      DISTANCES GROUPA=@TARGET@ GROUPB=sulf MIN={BETA=50}
+cn_pts:  COORDINATION GROUPA=@TARGET@ GROUPB=sulf R_0=3.6 NN=6 MM=12
+
+metad: METAD ARG=cn_ptpt,cn_pto SIGMA=0.3,0.3 HEIGHT=0.02 PACE=500 ...
+       BIASFACTOR=15 TEMP=353 GRID_MIN=-1,-1 GRID_MAX=10,6 ...
+       FILE=HILLS CALC_RCT
+
+uwall: UPPER_WALLS ARG=dz.z AT=14.0 KAPPA=5.0       # stops the dissolved ion wandering off forever
+
+PRINT ARG=cn_ptpt,cn_pto,dz.z,dS.min,cn_pts,metad.bias,metad.rbias STRIDE=100 FILE=COLVAR

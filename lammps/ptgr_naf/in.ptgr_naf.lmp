@@ -1,0 +1,38 @@
+# in.ptgr_nafion.lmp
+units           metal
+boundary        p p p
+atom_style      atomic
+atom_modify     map yes
+newton          on
+
+read_data       data.lammps          # types: 1 Pt, 2 C, 3 O, 4 H, 5 F, 6 S
+
+pair_style      mliap unified model-mliap_lammps.pt 0
+pair_coeff      * * Pt C O H F S     # order must match the model's species mapping
+
+neighbor        1.0 bin
+timestep        0.0005               # 0.5 fs, H-containing system, reactive potential
+thermo          100
+thermo_style    custom step temp pe ke etotal press vol
+
+# --- stage 1: relax strained packing contacts ---
+min_style       fire
+minimize        1e-6 1e-8 2000 20000
+reset_timestep  0
+
+# --- stage 2: gentle heating, short dt ---
+velocity        all create 100.0 48291 dist gaussian mom yes rot yes
+fix             nvt all nvt temp 100.0 353.0 $(100.0*dt)
+fix             wall all wall/reflect zhi EDGE   # keep water from evaporating into the vacuum
+run             20000                            # 10 ps
+
+# --- stage 3: equilibration at PEMFC temperature ---
+fix             nvt all nvt temp 353.0 353.0 $(100.0*dt)   # redefining replaces fix nvt
+dump            d1 all custom 200 traj.lammpstrj id type x y z fx fy fz
+restart         50000 restart.*.lmp
+run             200000                           # 100 ps
+
+# --- stage 4: production, biased (PLUMED must come AFTER the thermostat) ---
+fix             pl all plumed plumedfile plumed.dat outfile plumed.out
+run             10000000                         # 5 ns per site
+write_data      final.data
