@@ -1,0 +1,6 @@
+outs:
+- md5: 0cec6400392528556bffe6e8d5410af9.dir
+  size: 337478
+  nfiles: 6
+  hash: md5
+  path: octahedron_079pt

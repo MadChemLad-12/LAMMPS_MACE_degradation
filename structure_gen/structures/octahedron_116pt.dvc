@@ -1,0 +1,6 @@
+outs:
+- md5: 80dce718576ef1308de486758de35253.dir
+  size: 452845
+  nfiles: 6
+  hash: md5
+  path: octahedron_116pt
