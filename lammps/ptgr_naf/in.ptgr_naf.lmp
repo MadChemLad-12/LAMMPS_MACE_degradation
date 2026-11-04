@@ -5,9 +5,9 @@ atom_style      atomic
 atom_modify     map yes
 newton          on
 
-read_data       data.lammps          # types: 1 Pt, 2 C, 3 O, 4 H, 5 F, 6 S
+read_data       /home/user/Documents/Programs/For_GIT/LAMMPS_MACE_degradation/structure_gen/structures/octahedron_019pt/data.lammps         # types: 1 Pt, 2 C, 3 O, 4 H, 5 F, 6 S
 
-pair_style      mliap unified model-mliap_lammps.pt 0
+pair_style      mliap unified /home/user/Documents/Programs/For_GIT/LAMMPS_MACE_degradation/MACEV5-LAMMPS.pt 0
 pair_coeff      * * Pt C O H F S     # order must match the model's species mapping
 
 neighbor        1.0 bin
