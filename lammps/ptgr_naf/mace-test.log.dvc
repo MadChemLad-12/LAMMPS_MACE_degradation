@@ -1,0 +1,5 @@
+outs:
+- md5: 20cab18caa80f7f2541b25993842a4a3
+  size: 32
+  hash: md5
+  path: mace-test.log

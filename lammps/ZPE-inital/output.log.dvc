@@ -1,0 +1,5 @@
+outs:
+- md5: 2587ae6ddb74748a3194668ce431de6b
+  size: 3332
+  hash: md5
+  path: output.log
