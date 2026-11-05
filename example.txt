@@ -1,0 +1,37 @@
+# Example run on tcssw2
+
+lmp -k on g 1 -sf kk -pk kokkos newton on neigh half \
+ -in in.ZPE.mace.lmp   -var data \
+ ../../structure_gen/structures/octahedron_019pt/data.lammps \ 
+ -var model ../../ 2>&1 | tee run.log
+
+```
+-k on g 1
+```
+# tells tcssw2 to run KOKOS package and to use 1 GPU per node/
+# With MPI, each rank gets one GPU, so mpirun -np 2 ... g 2 would use two. 
+# With CUDA_VISIBLE_DEVICES=1 set, that “1 GPU” is physical GPU 1. 
+
+```
+-sf kk
+```
+# Automatically runs the Kokkos (/kk) version of any style that has one. 
+# {pair_style} mliap becomes its Kokkos version, and {fix nvt} becomes {nvt/kk}. 
+# Styles with no Kokkos version, such as compute rdf, quietly run on the CPU. 
+# Without it Kokkos is enabled but your styles don’t use the GPU.
+
+```
+-pk kokkos newton on neigh half
+```
+# The same as writing package kokkos newton on neigh half as the first line of the input; your log echoes it that way.
+
+NOTES
+The two options in that last flag:
+
+{newton on} applies Newton’s third law to pair interactions. 
+Each pair is computed once and the force is applied to both atoms. 
+
+{neigh half} tores each pair once in the neighbor list. 
+Kokkos on GPUs defaults to neigh full with Newton off, which stores both directions. 
+The MACE ML-IAP docs ask for this combination, so I’d keep it for MACE runs. 
+It’s a requirement of the MACE route, not a general GPU tuning choice.

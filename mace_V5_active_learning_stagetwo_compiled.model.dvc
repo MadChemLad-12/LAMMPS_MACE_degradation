@@ -1,0 +1,5 @@
+outs:
+- md5: 5f03c5af78ff652447da03808f4155f5
+  size: 38072538
+  hash: md5
+  path: mace_V5_active_learning_stagetwo_compiled.model

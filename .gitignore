@@ -1,3 +1,11 @@
 /mace_V5_active_learning_stagetwo.model
 /mace_V5_active_learning_stagetwo.model-mliap_lammps.pt
 /MACEV5-LAMMPS.pt
+/mace_V5_active_learning_stagetwo_compiled.model
+/mace_V9_active_learning_stagetwo.model
+/MACE-LAMMPSV9.pt
+/mace_V5_active_learning_stagetwo_compiled.model-lammps.pt
+/mace_V9_active_learning_stagetwo.model-lammps.pt
+/mace_V9_active_learning_stagetwo.model-mliap_lammps.pt
+/test_final.data
+/test_step0.lammpstrj

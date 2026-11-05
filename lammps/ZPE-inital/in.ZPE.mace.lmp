@@ -1,7 +1,7 @@
 # in.test_mace.lmp - smoke test for a MACE (ML-IAP) model on a Pt/graphene/Nafion/water structure
 # usage: lmp -in in.test_mace.lmp -var data path/to/data.lammps -var model path/to/model-mliap_lammps.pt
 variable data  index /home/user/Documents/Programs/For_GIT/LAMMPS_MACE_degradation/structure_gen/structures/octahedron_019pt/data.lammps
-variable model index /home/user/Documents/Programs/For_GIT/LAMMPS_MACE_degradation/MACEV5-LAMMPS.pt
+variable model index /home/user/Documents/Programs/For_GIT/LAMMPS_MACE_degradation/MACE-LAMMPSV9.pt
 
 units           metal
 boundary        p p p

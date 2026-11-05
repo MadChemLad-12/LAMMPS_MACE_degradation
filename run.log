@@ -1,0 +1,210 @@
+LAMMPS (30 Sep 2026 - Development - patch_30Sep2026-873-g80e27a7117)
+/home/h.jack/miniconda3/envs/lmp_mace/lib/python3.11/site-packages/e3nn/o3/_wigner.py:10: UserWarning: Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected, since the`weights_only` argument was not explicitly passed to `torch.load`, forcing weights_only=False.
+  _Jd, _W3j_flat, _W3j_indices = torch.load(os.path.join(os.path.dirname(__file__), 'constants.pt'))
+/home/h.jack/miniconda3/envs/lmp_mace/lib/python3.11/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+KOKKOS mode with Kokkos version 5.2.1 is enabled
+  using double precision
+  using view layout = legacy
+  will use up to 1 GPU(s) per node
+  using 1 OpenMP thread(s) per MPI task
+Reading data file ...
+  orthogonal box = (0 0 0) to (22.14 21.304225 42.163426)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  1225 atoms
+  read_data CPU = 0.008 seconds
+19 atoms in group Pt
+>>> single point
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Your simulation uses code contributions which should be cited:
+- KOKKOS package: https://doi.org/10.1145/3731599.3767498
+The log file lists these citations in BibTeX format.
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+WARNING: No fixes with time integration, atoms won't move
+For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 7
+  ghost atom cutoff = 9.5
+  binsize = 7, bins = 4 4 7
+  6 neighbor lists, perpetual/occasional/extra = 1 5 0
+  (1) pair mliap/kk, perpetual
+      attributes: full, newton on, kokkos_device
+      pair build: full/bin/kk/device
+      stencil: full/bin/3d
+      bin: kk/device
+  (2) compute coord/atom/kk, occasional, copy from (1)
+      attributes: full, newton on, kokkos_device
+      pair build: copy/kk/device
+      stencil: none
+      bin: none
+  (3) compute coord/atom/kk, occasional, copy from (1)
+      attributes: full, newton on, kokkos_device
+      pair build: copy/kk/device
+      stencil: none
+      bin: none
+  (4) compute coord/atom/kk, occasional, copy from (1)
+      attributes: full, newton on, kokkos_device
+      pair build: copy/kk/device
+      stencil: none
+      bin: none
+  (5) compute coord/atom/kk, occasional, copy from (1)
+      attributes: full, newton on, kokkos_device
+      pair build: copy/kk/device
+      stencil: none
+      bin: none
+  (6) compute rdf, occasional
+      attributes: half, newton on, cut 9, cut fixed 1
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 39.27 | 39.27 | 39.27 Mbytes
+   Step          Temp          PotEng         KinEng         TotEng          Fmax          Press         c_nPtPt         c_nPtC         c_nPtO         c_nPtS    
+         0   0             -271495         0             -271495         10.178581      19428.502      6.3157895      45             1              0            
+Loop time of 0.000120456 on 1 procs for 0 steps with 1225 atoms
+
+101.3% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.0001205  |            |       |100.00
+
+Nlocal:           1225 ave        1225 max        1225 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4292 ave        4292 max        4292 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       142366 ave      142366 max      142366 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 142366
+Ave neighs/atom = 116.21714
+Neighbor list builds = 0
+Dangerous builds = 0
+>>> relax
+Setting up cg/kk style minimization ...
+  Unit style    : metal
+  Current step  : 0
+WARNING: Fix MINIMIZE/kk not compatible with sending data in Kokkos communication (src/KOKKOS/comm_kokkos.cpp:1027)
+WARNING: Fix with atom-based arrays not compatible with sending data in Kokkos communication, switching to legacy exchange/border communication (src/KOKKOS/comm_kokkos.cpp:1034)
+WARNING: Fix MINIMIZE/kk not (yet) compatible with Kokkos sorting on device (src/KOKKOS/atom_kokkos.cpp:363)
+WARNING: Fix with atom-based arrays not (yet) compatible with Kokkos sorting on device, switching to legacy host sorting (src/KOKKOS/atom_kokkos.cpp:369)
+Per MPI rank memory allocation (min/avg/max) = 57 | 57 | 57 Mbytes
+   Step          Temp          PotEng         KinEng         TotEng          Fmax          Press         c_nPtPt         c_nPtC         c_nPtO         c_nPtS    
+         0   0             -271495         0             -271495         10.178581      19428.502      6.3157895      45             1              0            
+        10   0             -271554.24      0             -271554.24      6.1606939      15279.584      5.7894737      29             1              0            
+        20   0             -271577.84      0             -271577.84      2.6621281      13647.852      5.1578947      30             1              0            
+        30   0             -271590.23      0             -271590.23      3.4832886      11971.144      5.3684211      24             1              0            
+        40   0             -271599.01      0             -271599.01      2.1308538      10559.088      5.3684211      24             2              0            
+        50   0             -271605.32      0             -271605.32      2.9342725      10360.34       5.3684211      23             2              0            
+Loop time of 23.8358 on 1 procs for 50 steps with 1225 atoms
+
+99.7% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = max iterations
+  Energy initial, next-to-last, final = 
+     -271494.998671972  -271604.732472321   -271605.32386186
+  Force two-norm initial, final = 34.675637 8.150242
+  Force max component initial, final = 10.178581 2.9342725
+  Final line search alpha, max atom move = 0.031873829 0.093526502
+  Iterations, force evaluations = 50 83
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 23.808     | 23.808     | 23.808     |   0.0 | 99.89
+Neigh   | 0.0034208  | 0.0034208  | 0.0034208  |   0.0 |  0.01
+Comm    | 0.0049564  | 0.0049564  | 0.0049564  |   0.0 |  0.02
+Output  | 0.0046195  | 0.0046195  | 0.0046195  |   0.0 |  0.02
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.01434    |            |       |  0.06
+
+Nlocal:           1225 ave        1225 max        1225 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4306 ave        4306 max        4306 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       140996 ave      140996 max      140996 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 140996
+Ave neighs/atom = 115.09878
+Neighbor list builds = 5
+Dangerous builds = 0
+>>> short MD
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 50
+  Time step     : 0.0005
+Per MPI rank memory allocation (min/avg/max) = 55.88 | 55.88 | 55.88 Mbytes
+   Step          Temp          PotEng         KinEng         TotEng          Fmax          Press         c_nPtPt         c_nPtC         c_nPtO         c_nPtS    
+        50   100           -271605.32      15.821442     -271589.5       2.9342725      11210.08       5.3684211      23             2              0            
+        60   62.938976     -271599.42      9.9578534     -271589.46      2.4469781      10645.412      5.3684211      23             2              0            
+        70   67.632411     -271600.08      10.700422     -271589.38      2.1938108      10808.912      5.2631579      23             2              0            
+        80   57.745268     -271598.31      9.136134      -271589.18      3.1429589      10251.495      5.2631579      23             2              0            
+        90   71.332863     -271600.26      11.285887     -271588.98      1.9336245      11053.133      5.2631579      23             2              0            
+       100   77.663782     -271601.03      12.28753      -271588.75      2.7597601      10298.663      5.2631579      23             2              0            
+       110   77.352958     -271600.78      12.238353     -271588.54      2.1342779      10991.047      5.2631579      25             2              0            
+       120   82.595456     -271601.36      13.067792     -271588.29      1.72848        10146.154      5.2631579      24             2              0            
+       130   85.002305     -271601.45      13.44859      -271588         2.8979462      11351.761      5.2631579      24             2              0            
+       140   91.843036     -271602.2       14.530892     -271587.66      2.0568064      10518          5.2631579      23             2              0            
+       150   95.857197     -271602.46      15.165991     -271587.29      2.6729037      11109.29       5.2631579      23             2              0            
+       160   97.974391     -271602.39      15.500961     -271586.89      2.1641972      10117.461      5.2631579      24             2              0            
+       170   103.83545     -271602.89      16.428265     -271586.47      2.2416678      10674.705      5.2631579      23             2              0            
+       180   103.09442     -271602.32      16.311024     -271586.01      2.7855652      10522.485      5.2631579      23             2              0            
+       190   117.07997     -271604.06      18.52374      -271585.54      1.9722293      10935.418      5.2631579      23             2              0            
+       200   121.11093     -271604.16      19.161495     -271584.99      2.8362087      11083.389      5.2631579      24             2              0            
+       210   129.15873     -271604.87      20.434774     -271584.44      2.6823482      11146.927      5.2631579      23             2              0            
+       220   134.44744     -271605.09      21.271523     -271583.82      2.0847871      11394.791      5.2631579      23             2              0            
+       230   137.99156     -271605.02      21.832254     -271583.19      2.624258       11091.361      5.2631579      24             2              0            
+       240   144.35655     -271605.35      22.839288     -271582.52      2.0087553      11153.558      5.2631579      24             2              0            
+       250   148.22289     -271605.27      23.450998     -271581.82      2.8661126      10928.271      5.2631579      24             2              0            
+Loop time of 53.7933 on 1 procs for 200 steps with 1225 atoms
+
+Performance: 0.161 ns/day, 149.426 hours/ns, 3.718 timesteps/s, 4.554 katom-step/s
+99.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 53.693     | 53.693     | 53.693     |   0.0 | 99.81
+Neigh   | 0.0046017  | 0.0046017  | 0.0046017  |   0.0 |  0.01
+Comm    | 0.010373   | 0.010373   | 0.010373   |   0.0 |  0.02
+Output  | 0.018568   | 0.018568   | 0.018568   |   0.0 |  0.03
+Modify  | 0.058851   | 0.058851   | 0.058851   |   0.0 |  0.11
+Other   |            | 0.008444   |            |       |  0.02
+
+Nlocal:           1225 ave        1225 max        1225 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4301 ave        4301 max        4301 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         152140 ave      152140 max      152140 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       141172 ave      141172 max      141172 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 152140
+Ave neighs/atom = 124.19592
+Neighbor list builds = 7
+Dangerous builds = 0
+System init for write_data ...
+Total wall time: 0:01:31

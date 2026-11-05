@@ -1,0 +1,5 @@
+outs:
+- md5: 97397f9393245b10f5f8f6641db2a397
+  size: 70354
+  hash: md5
+  path: test_step0.lammpstrj
