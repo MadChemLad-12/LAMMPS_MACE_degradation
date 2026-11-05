@@ -1,0 +1,5 @@
+outs:
+- md5: cf15dbfc833f2ffbe4cccbcc6a459d30
+  size: 75761562
+  hash: md5
+  path: MACEV5-LAMMPS.pt
