@@ -1,0 +1,6 @@
+outs:
+- md5: 3dfe2e894cab6e031cde7a583ac4790f.dir
+  size: 1673062
+  nfiles: 31
+  hash: md5
+  path: structure_gen
