@@ -1,0 +1,6 @@
+outs:
+- md5: dc5057989a7963d69d9247b1a2c1c115.dir
+  size: 163418173
+  nfiles: 307
+  hash: md5
+  path: pipeline_runs

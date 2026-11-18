@@ -1,0 +1,4 @@
+# pair_mace.lmp - the ONLY file that knows about the MACE model (included by ptgr_naf.lmp).
+# Type order must match the data file: 1 Pt, 2 C, 3 O, 4 H, 5 F, 6 S
+pair_style  mliap unified ${model} 0
+pair_coeff  * * Pt C O H F S

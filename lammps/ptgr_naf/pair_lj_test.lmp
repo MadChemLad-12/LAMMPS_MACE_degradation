@@ -1,0 +1,3 @@
+# pair_lj_test.lmp - dummy bounded potential for syntax / plumbing tests ONLY (not physical)
+pair_style  soft 1.0
+pair_coeff  * * 0.2 1.0

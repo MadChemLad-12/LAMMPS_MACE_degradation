@@ -1,0 +1,85 @@
+# =============================================================================
+# ptgr_naf.lmp - Pt nanoparticle / graphene / Nafion / water, MACE (ML-IAP) + optional PLUMED
+#
+# Stages: minimise -> ramp 100 K -> ${temp} -> NVT equilibration -> NVT production (+PLUMED).
+# Everything you change is an `index` variable: override on the command line, e.g.
+#   lmp ... -in ptgr_naf.lmp -var data equil.data -var tag test -var nprod 2000 -var useplumed 0
+# Launch (GPU, Kokkos; check your LAMMPS version's ML-IAP/Kokkos docs for the exact flags):
+#   lmp -k on g 1 -sf kk -pk kokkos newton on neigh half -in ptgr_naf.lmp -log run.log -var tag run
+# Always pass -log: analyze_run.py log reads the speed ('Performance:') and thermo from it.
+# Units: metal (eV, A, ps).  dt = 0.5 fs.
+#
+# Geometry: boundary p p f (periodic in x,y; walls at the top and bottom of the box).
+# fix wall/reflect refuses a periodic dimension, hence 'f' in z. The cell must therefore have
+# empty space above the liquid and below the graphene (the builder gives 10 A / 5 A).
+# =============================================================================
+variable data        index data.lammps       # structure from build_interface.py (or a write_data snapshot)
+variable model       index model-mliap_lammps.pt
+variable pairfile    index pair_mace.lmp     # pair_lj_test.lmp for plumbing tests
+variable plumed      index plumed.dat        # from prep_plumed.py
+variable useplumed   index 1                 # 0 = plain MD, 1 = PLUMED (unbiased or metad, as the file says)
+variable tag         index run               # prefix of every output file
+variable temp        index 353.0
+variable tstart      index 100.0
+variable seed        index 48291
+variable dt          index 0.0005            # ps
+variable nmin        index 5000              # minimiser max iterations (0 = skip)
+variable nheat       index 20000             # steps of the temperature ramp (0 = skip)
+variable neq         index 200000            # steps of NVT equilibration (0 = skip)
+variable nprod       index 4000000           # steps of production (0 = skip)
+variable ndump       index 500               # frames: multiple of the PLUMED COLVAR stride (100)
+variable extxyz      index 0                 # 1 = also write ${tag}.extxyz with LAMMPS' own dump extxyz
+variable userestart  index 0                 # 1 = continue from a restart file instead of read_data
+variable restartfile index none.restart      # used when userestart is 1
+
+units           metal
+boundary        p p f
+atom_style      atomic
+atom_modify     map yes
+newton          on
+
+if "${userestart} == 0" then "read_data ${data}" else "read_restart ${restartfile}"
+
+include         ${pairfile}
+neighbor        1.0 bin
+timestep        ${dt}
+
+# reflecting walls keep evaporating water / a detached Pt ion inside the box
+fix             walls all wall/reflect zlo EDGE zhi EDGE
+
+thermo          100
+thermo_style    custom step time temp pe ke etotal
+thermo_modify   flush yes
+
+# ---- 1. minimise (no dumps; step counter restarts at 0 afterwards) ----------------------
+if "${nmin} > 0" then "min_style fire" "minimize 1e-6 1e-8 ${nmin} $(10*v_nmin)" "write_data ${tag}_min.data"
+if "${userestart} == 0" then "reset_timestep 0"
+
+# ---- output (MD stages only) -----------------------------------------------------------
+# LAMMPS dump: wrapped coordinates + image flags (to unwrap) + MLIP forces
+dump            traj all custom ${ndump} ${tag}.lammpstrj id type x y z ix iy iz fx fy fz
+dump_modify     traj sort id
+
+# LAMMPS' own extxyz dump: conditional check so it won't crash if EXTRA-DUMP is absent
+if "${extxyz} == 1" then &
+  "dump xyz all extxyz ${ndump} ${tag}.extxyz" &
+  "dump_modify xyz element Pt C O H F S sort id"
+
+# per-frame energy/temperature, same stride (step = MD step; PLUMED time = step*dt)
+fix             ene all print ${ndump} "$(step) $(time:%.4f) $(pe:%.8f) $(temp:%.3f)" file ${tag}_energy.dat screen no title "# step time_ps pe_eV temp_K"
+restart         100000 ${tag}.a.restart ${tag}.b.restart
+
+# ---- 2. heat ----------------------------------------------------------------------
+if "${userestart} == 0" then "velocity all create ${tstart} ${seed} dist gaussian mom yes rot no"
+if "${nheat} > 0" then &
+  "fix nvt all nvt temp ${tstart} ${temp} $(100.0*dt)" &
+  "run ${nheat}" &
+  "unfix nvt"
+
+# ---- 3. equilibrate ------------------------------------------------------------------
+fix             nvt all nvt temp ${temp} ${temp} $(100.0*dt)
+if "${neq} > 0" then "run ${neq}" "write_data ${tag}_equil.data" "write_restart ${tag}_equil.restart"
+
+# ---- 4. production (PLUMED after the thermostat) --------------------------------------
+if "${useplumed} == 1" then "fix pl all plumed plumedfile ${plumed} outfile ${tag}_plumed.out"
+if "${nprod} > 0" then "run ${nprod}" "write_data ${tag}_final.data" "write_restart ${tag}_final.restart"

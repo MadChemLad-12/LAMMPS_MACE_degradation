@@ -3,6 +3,8 @@ UNITS LENGTH=A ENERGY=eV            # LAMMPS fix handles conversion; inputs in Ã
 pt_rest: GROUP ATOMS=@PT_EXCEPT_TARGET@
 carb:    GROUP ATOMS=@C@
 oall:    GROUP ATOMS=@O@            # all O (water, sulfonate, adsorbed)
+oML:     GROUP 
+owet:    GROUP
 sulf:    GROUP ATOMS=@S@
 
 # --- biased CVs: dissolution of one chosen Pt atom ---
