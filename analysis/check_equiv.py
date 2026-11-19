@@ -33,10 +33,10 @@ from ase.io import read, write
 
 
 def lammps_ef(atoms, workdir, tag, lmp, pair_lines, specorder, env):
+    workdir = os.path.abspath(workdir)
     data = os.path.join(workdir, f"{tag}.data")
     write(data, atoms, format="lammps-data", atom_style="atomic", specorder=specorder, masses=True)
     inp = os.path.join(workdir, f"{tag}.in")
-    os.makedirs(os.path.dirname(inp), exist_ok=True)  # <--- Add this line
     open(inp, "w").write(f"""units metal
 boundary p p f
 atom_style atomic
@@ -56,7 +56,7 @@ print "FINAL_PE $(pe:%.12f)"
     out = r.stdout + r.stderr
     m = re.search(r"FINAL_PE\s+(\S+)", out)
     if r.returncode != 0 or not m:
-        raise SystemExit(f"LAMMPS failed for {tag} (exit {r.returncode}). Last output:\n" + out[-2500:])
+        raise SystemExit(f"LAMMPS failed for {tag} (exit {r.returncode}); command: {lmp} -in {inp}\nLast output:\n" + out[-2500:])
     lines = open(os.path.join(workdir, f"{tag}.dump")).read().split("\n")
     k = next(i for i, l in enumerate(lines) if l.startswith("ITEM: ATOMS"))
     arr = np.array([[float(x) for x in l.split()] for l in lines[k + 1:] if l.strip()])
@@ -103,7 +103,9 @@ def main():
         a.rattle(args.rattle, seed=100 + k)
         cfgs.append((f"rattled{k}", a))
 
-    wd = args.keep or tempfile.mkdtemp(prefix="equiv_")
+    # ABSOLUTE path: LAMMPS runs with cwd=wd, so a relative --keep would make every path below point
+    # to wd/wd/... ("Cannot open input script equiv_files/original.in")
+    wd = os.path.abspath(args.keep or tempfile.mkdtemp(prefix="equiv_"))
     os.makedirs(wd, exist_ok=True)
     env = dict(os.environ)
     sym = np.array(atoms0.get_chemical_symbols())

@@ -9,12 +9,14 @@ editing it. Put this file next to build_interface.py (structure_gen/).
 One output folder per condition:  <out>/cov0.375_mixed_s7_graphene/<shape>_<NNN>pt/data.lammps
 (coverage 0.0 builds one bare system per head mode; site/seed are ignored there).
 --set KEY=VALUE overrides any Config field (values are parsed as Python literals, else strings).
-At the end <out>/manifest.txt lists every data.lammps that exists, one absolute path per line.
+At the end <out>/manifest.txt lists the data.lammps files built BY THIS RUN (use --manifest-all for every
+structure already under --out), one absolute path per line.
 """
 import argparse
 import ast
 import itertools
 import sys
+import time
 from dataclasses import fields, replace
 from pathlib import Path
 
@@ -40,7 +42,10 @@ def main():
     ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
     ap.add_argument("--no-packmol", action="store_true", help="reuse existing liquid.xyz (Config.run_packmol=False)")
     ap.add_argument("--view", action="store_true")
+    ap.add_argument("--manifest-all", action="store_true",
+                    help="list every data.lammps under --out, not only the ones built now")
     a = ap.parse_args()
+    t0 = time.time() - 2.0
 
     names = {f.name for f in fields(bi.Config)}
     over = {}
@@ -80,9 +85,9 @@ def main():
         for d in cfg.np_sizes_nm:
             bi.build_one(cfg, d)
         print()
-    found = sorted(out.glob("*/*/data.lammps"))
+    found = sorted(p for p in out.glob("*/*/data.lammps") if a.manifest_all or p.stat().st_mtime >= t0)
     (out / "manifest.txt").write_text("".join(f"{p}\n" for p in found))
-    print(f"{len(found)} structures; manifest: {out / 'manifest.txt'}")
+    print(f"{len(found)} structures built now; manifest: {out / 'manifest.txt'}")
 
 
 if __name__ == "__main__":

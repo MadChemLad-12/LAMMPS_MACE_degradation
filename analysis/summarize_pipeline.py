@@ -65,6 +65,10 @@ def main():
         out.append(r)
     if not out:
         sys.exit("no system directories with status.txt found")
+    dry = os.path.exists(os.path.join(root, "DRY_RUN"))
+    if dry:
+        print("*** DRY RUN (dummy potential): speed, broken Nafion bonds, detached Pt and S-Pt distances below reflect the "
+              "dummy potential, NOT the model. Only the 'md', 'pilot' and file columns tell you the plumbing works. ***\n")
     cols = ["system", "atoms", "build", "equiv", "md", "steps_per_s", "ns_per_day", "T_end_K", "Pt_detached_max",
             "Nafion_broken_max", "min_S_Pt_A", "Pt_CN_end", "pilot", "note"]
     with open(os.path.join(root, "summary.tsv"), "w") as fh:

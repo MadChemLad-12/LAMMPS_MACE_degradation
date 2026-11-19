@@ -137,3 +137,21 @@ EXTXYZ=0 bash run_pipeline.sh --dry-run
 5. **Analysis & Summary:** Plots thermodynamic stability and z-density profiles, checks for Pt detachment or Nafion bond breaking, and prints `summary.tsv`.
 
 Let me know if you'd like to adjust any default step counts or add SLURM batch submission templates to the documentation!
+
+
+Which outputs matter
+
+Fifteen picoseconds is far too short to equilibrate anything, so these outputs only catch failures. Open them in this order:
+
+summary.tsv.
+equiv: should say PASS.
+steps_per_s: sets the budget.
+Nafion_broken_max: must be 0.
+Pt_detached_max: must be 0 without bias.
+min_S_Pt_A: the pt head mode should be clearly smaller than the graphene mode. If not, the head placement isn’t doing what you intended.
+md_thermo.png. Temperature should ramp and then plateau, and potential energy should have no spikes.
+md_traj_metrics.png. Mean Pt–Pt coordination and Pt–C contacts should be steady, and a falling Pt coordination suggests melting or reconstruction. Check the sulfonate-on-Pt and water-on-Pt panels against the head mode.
+md_zdensity.png. Look for water layering near the graphene and Pt, and a flat middle.
+pilot/. The COLVAR plot and its SIGMA advice.
+
+If you paste summary.tsv I can read it with you.

@@ -9,6 +9,7 @@
 #   SIZES=0.8,1.0 COVERAGES=0.0,0.375 GPUS="0 1" ./run_pipeline.sh
 #   ./run_pipeline.sh --dry-run                        # no GPU/MACE: soft dummy potential, checks the plumbing
 #   ./run_pipeline.sh --skip-build --pilot             # reuse structures, add the PLUMED pilot
+#   ONLY='octahedron_019pt' ./run_pipeline.sh          # test only systems whose path matches this regex
 #   ./run_pipeline.sh -h
 #
 # Every setting is an environment variable (defaults in the CONFIG block). Outputs go to
@@ -18,33 +19,42 @@
 set -u
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 
+# ---------------- personal defaults (optional) -----------------------------------
+# Put your own settings in $ROOT/pipeline.env (or PIPELINE_ENV=/path) so that updating this script never
+# overwrites them. Use the form  VAR=${VAR:-value}  so values given on the command line still win, e.g.
+#   MODEL_ASE=${MODEL_ASE:-$ROOT/mace_V11_active_learning.model}
+#   COVERAGES=${COVERAGES:-0.0,0.25,0.5,0.75}
+PIPELINE_ENV="${PIPELINE_ENV:-$ROOT/pipeline.env}"
+if [ -f "$PIPELINE_ENV" ]; then . "$PIPELINE_ENV"; ENV_NOTE="settings file: $PIPELINE_ENV"; else ENV_NOTE=""; fi
+
 # ---------------- CONFIG ------------------------------------------------------
 PYTHON="${PYTHON:-python}"
 STRUCT_DIR="${STRUCT_DIR:-$ROOT/structure_gen}"
 ANALYSIS_DIR="${ANALYSIS_DIR:-$ROOT/analysis}"
 LMP_DIR="${LMP_DIR:-$ROOT/lammps/ptgr_naf}"
 LMP_INPUT="${LMP_INPUT:-$LMP_DIR/ptgr_naf.lmp}"
-MODEL_ASE="${MODEL_ASE:-$ROOT/mace_V9_active_learning_stagetwo.model}"
-MODEL_LMP="${MODEL_LMP:-$ROOT/mace_V9_active_learning_stagetwo.model-mliap_lammps.pt}"
+MODEL_ASE="${MODEL_ASE:-$ROOT/mace_V11_active_learning.model}"
+MODEL_LMP="${MODEL_LMP:-$ROOT/MACE-LMPV11.pt}"
 HEAD="${HEAD:-}"                                   # head name for multihead models (check_equiv --head)
 # structures
-SIZES="${SIZES:-0.8,1.2}"             # nm, volume-equivalent diameters
-COVERAGES="${COVERAGES:-0.25}"                # ML (per exposed surface Pt); 0.0 = bare
+SIZES="${SIZES:-0.8,1.2,1.6,2.0}"             # nm, volume-equivalent diameters
+COVERAGES="${COVERAGES:-0.0,0.25,0.5}"                # ML (per exposed surface Pt); 0.0 = bare
 SITES="${SITES:-mixed}"                            # fcc|hcp|hollow|4fold|bridge|ontop|mixed
 SEEDS="${SEEDS:-426}"
-HEADS="${HEADS:-pt}"                                 # Nafion head modes: graphene,pt,free (empty = Config default)
+HEADS="${HEADS:-pt,graphene}"                                 # Nafion head modes: graphene,pt,free (empty = Config default)
 SETS="${SETS:-}"                                   # extra Config overrides, space separated: "n_nafion=2 margin=7.0"
 STRUCT_OUT="${STRUCT_OUT:-$STRUCT_DIR/structures_sweep}"
 # LAMMPS
 LMP="${LMP:-lmp -k on g 1 -sf kk -pk kokkos newton on neigh half}"   # check against your build's ML-IAP/Kokkos docs
-GPUS="${GPUS:-1}"                                  # space-separated GPU ids; systems run in parallel, one per GPU
+GPUS="${GPUS:-0 1}"                                  # space-separated GPU ids; systems run in parallel, one per GPU
 DEVICE="${DEVICE:-cuda}"
 NMIN="${NMIN:-2000}"; NHEAT="${NHEAT:-5000}"; NEQ="${NEQ:-10000}"
 NDUMP="${NDUMP:-200}"; DT="${DT:-0.0005}"          # DT in ps; must match -var dt
 EQUIV="${EQUIV:-first}"                            # first | all | none  (ASE-vs-LAMMPS check)
 EXTXYZ="${EXTXYZ:-0}"                              # 0 if your LAMMPS has no `dump extxyz` (converted afterwards)
 # pilot
-PILOT="${PILOT:-0}"; PILOT_STEPS="${PILOT_STEPS:-20000}"; PILOT_SITES="${PILOT_SITES:-vertex edge facet perimeter}"
+PILOT="${PILOT:-0}"; PILOT_STEPS="${PILOT_STEPS:-2000}"; PILOT_SITES="${PILOT_SITES:-vertex edge facet perimeter}"
+ONLY="${ONLY:-}"                                   # regex: only test systems whose path matches, e.g. "octahedron_019pt|_pt/"
 DRY_RUN="${DRY_RUN:-0}"; SKIP_BUILD="${SKIP_BUILD:-0}"
 OUT="${OUT:-$ROOT/pipeline_runs/$(date +%Y%m%d_%H%M%S)}"
 # -------------------------------------------------------------------------------
@@ -73,6 +83,7 @@ fi
 mkdir -p "$OUT"
 LOG="$OUT/pipeline.log"
 say() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$LOG"; }
+[ -n "$ENV_NOTE" ] && say "$ENV_NOTE"
 
 # ---------------- preflight ------------------------------------------------------
 fail_pre=0
@@ -94,7 +105,31 @@ bad = [m for m in ("numpy", "scipy", "ase", "matplotlib") if importlib.util.find
 if bad:
     print("MISSING python modules:", bad); sys.exit(1)
 PY
+# which LAMMPS is this, can it start, and what is compiled in?
+LMP_BIN="$(echo "$LMP" | awk '{print $1}')"
+LMP_PATH="$(command -v "$LMP_BIN" 2>/dev/null)"
+LMP_HELP="$("$LMP_BIN" -h 2>&1)"
+if ! grep -q "Installed packages" <<< "$LMP_HELP"; then
+  say "ERROR: '$LMP_BIN' (${LMP_PATH:-not found}) cannot run 'lmp -h'. First lines of its output:"
+  echo "$LMP_HELP" | head -3 | sed 's/^/   /' | tee -a "$LOG"
+  say "   (a GLIBC error here usually means a pip 'lammps' wheel is shadowing your real build: set LMP=/full/path/to/lmp)"
+  fail_pre=1
+else
+  LMP_PKGS="$(awk '/Installed packages/{f=1;next} /List of individual style/{f=0} f' <<< "$LMP_HELP")"   # package list only (the help text also mentions KOKKOS)
+  has() { grep -qw -- "$1" <<< "$LMP_PKGS" && echo yes || echo NO; }
+  say "LAMMPS: $LMP_PATH | KOKKOS=$(has KOKKOS) ML-IAP=$(has ML-IAP) PYTHON=$(has PYTHON) PLUMED=$(has PLUMED) COLVARS=$(has COLVARS)"
+  if [ "$DRY_RUN" = 0 ] && { [ "$(has KOKKOS)" = NO ] || [ "$(has ML-IAP)" = NO ]; }; then
+    say "WARNING: real MACE runs need ML-IAP (and KOKKOS for the GPU flags in LMP); this binary lacks one of them"
+  fi
+  if [ "$PILOT" = 1 ] && [ "$(has PLUMED)" = NO ]; then
+    say "WARNING: this LAMMPS was built WITHOUT the PLUMED package -> PLUMED pilot disabled."
+    say "   dry runs: a conda-forge CPU env (conda create -n lmp_plumed -c conda-forge lammps plumed; LMP=<that lmp>)"
+    say "   GPU/MACE: rebuild LAMMPS with -D PKG_PLUMED=yes -D PLUMED_MODE=runtime, then export PLUMED_KERNEL=<libplumedKernel.so>"
+    PILOT=0
+  fi
+fi
 [ "$fail_pre" = 0 ] || { say "preflight failed - fix the above and re-run"; exit 2; }
+[ "$DRY_RUN" = 1 ] && touch "$OUT/DRY_RUN"
 say "outputs: $OUT"
 
 # ---------------- 1. build ----------------------------------------------------------
@@ -111,6 +146,10 @@ fi
 MANIFEST="$STRUCT_OUT/manifest.txt"
 [ -s "$MANIFEST" ] || { say "no structures in $MANIFEST"; exit 1; }
 mapfile -t DATAFILES < "$MANIFEST"
+if [ -n "$ONLY" ]; then
+  mapfile -t DATAFILES < <(printf '%s\n' "${DATAFILES[@]}" | grep -E "$ONLY")
+fi
+[ "${#DATAFILES[@]}" -gt 0 ] || { say "no structure matches ONLY='$ONLY'"; exit 1; }
 say "${#DATAFILES[@]} structures to test"
 
 # ---------------- per-system test ------------------------------------------------------
