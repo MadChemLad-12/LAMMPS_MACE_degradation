@@ -280,9 +280,16 @@ def load_plumed(path):
 def cmd_colvar(a):
     d = load_plumed(a.colvar)
     t = d["time"]
-    sk = t >= a.skip_ps
+    sk = t >= t[0] + a.skip_ps      # RELATIVE to the first COLVAR row: after a restart, PLUMED time continues from the MD step counter
+    span = t[-1] - t[0]
+    if sk.sum() < 5:
+        print(f"note: --skip-ps {a.skip_ps} would leave {int(sk.sum())} of {len(t)} rows (this file spans only {span:.2f} ps); using all rows")
+        sk = np.ones(len(t), bool)
+    if span < 10.0:
+        print(f"CAUTION: this COLVAR spans only {span:.2f} ps - means and fluctuations (and any SIGMA advice) are not reliable; "
+              "use a pilot of at least 20-50 ps (40,000-100,000 steps at 0.5 fs)")
     cv = [k for k in d if k != "time"]
-    print(f"{len(t)} rows, {t[0]:.2f}-{t[-1]:.2f} ps; using t >= {a.skip_ps} ps for statistics")
+    print(f"{len(t)} rows, {t[0]:.2f}-{t[-1]:.2f} ps; statistics use {int(sk.sum())} rows (from t = {t[sk][0]:.2f} ps)")
     print(f"{'CV':<14}{'mean':>9}{'sd':>8}{'min':>8}{'max':>8}")
     for k in cv:
         v = d[k][sk]
@@ -482,7 +489,7 @@ def main():
     p = sub.add_parser("colvar")
     p.add_argument("colvar")
     p.add_argument("--out", default="run")
-    p.add_argument("--skip-ps", type=float, default=0.0)
+    p.add_argument("--skip-ps", type=float, default=0.0, help="ps to skip at the START of this COLVAR file (relative)")
     p.add_argument("--detach-cn", type=float, default=0.5)
     p.set_defaults(f=cmd_colvar)
     p = sub.add_parser("fes")

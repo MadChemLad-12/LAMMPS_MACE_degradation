@@ -154,4 +154,18 @@ md_traj_metrics.png. Mean Pt–Pt coordination and Pt–C contacts should be ste
 md_zdensity.png. Look for water layering near the graphene and Pt, and a flat middle.
 pilot/. The COLVAR plot and its SIGMA advice.
 
-If you paste summary.tsv I can read it with you.
+What a full run produces
+Data	Where it comes from	What you can claim from it
+Equivalence, speed, stability	equiv.log, summary.tsv	The LAMMPS model matches the validated ASE model. Supports the budget and the SI.
+Structure metrics, density profiles, RDFs	md_traj_metrics.*, md_zdensity.png, mace_md.py rdf	The model keeps Pt, Nafion and water sensible. Compare with short AIMD.
+Unbiased CV fluctuations	pilot COLVAR	Sets SIGMA and shows that the CVs behave.
+Metadynamics CV time series	COLVAR (target Pt–Pt and Pt–O coordination, O-type splits, height, S–Pt, Pt–C)	Event ordering, recrossings, whether detachment is reversible.
+Free-energy surfaces	HILLS, analyze_run.py fes	Detachment barrier and attached-versus-detached ΔF per condition.
+Convergence	ΔF versus simulated time	Whether a barrier is quotable at all.
+Saddle-region frames	merge + extract_frames.py --where	The mechanism: which O type coordinates the target Pt at the saddle.
+DFT single points on those frames	your CP2K runs	Model error exactly where the claim lives.
+What it can’t give you
+Absolute rates. At 353 K, 0.1 eV is about a factor of 50 in rate.
+Potential dependence. Coverage maps to potential only through your CHE argument.
+Statistics from one trajectory. You need independent walkers and Nafion packings for error bars.
+A full dissolution product. I’d define the endpoint as detachment or lifting of the target Pt, not a solvated Pt ion.

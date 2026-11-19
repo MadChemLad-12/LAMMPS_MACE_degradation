@@ -37,8 +37,13 @@ MODEL_ASE="${MODEL_ASE:-$ROOT/mace_V11_active_learning.model}" # MACE model file
 MODEL_LMP="${MODEL_LMP:-$ROOT/mace_V11_active_learning.model-mliap_lammps.pt}" # MACE ML-IAP unified TorchScript model file passed to LAMMPS pair_style mliap unified
 HEAD="${HEAD:-}" # Optional model head name if using a multi-head MACE checkpoint (empty = default/single-head)
 # --- structures ---
+# Notes for building
+# Id advice to do similar size groups at the size time
+# This way you can better control the solvent volume and number of Nafions in a given point
+#
+#
 SIZES="${SIZES:-0.8,1.2}"  # Target Pt nanoparticle diameters in nanometers (volume-equivalent)
-COVERAGES="${COVERAGES:-0.0,0.25}"  # Oxygen adsorbate coverages in monolayers (ML) per exposed Pt surface atom; 0.0 = bare Pt
+COVERAGES="${COVERAGES:-0.0,0.25,0.375,0.5,0.75}"  # Oxygen adsorbate coverages in monolayers (ML) per exposed Pt surface atom; 0.0 = bare Pt
 SITES="${SITES:-mixed}"  # Adsorption site placement mode for oxygen adsorbates on the Pt nanoparticle
 # fcc|hcp|hollow|4fold|bridge|ontop|mixed
 SEEDS="${SEEDS:-426}" 
@@ -47,10 +52,10 @@ SETS="${SETS:-}"       # extra Config overrides, space separated: "n_nafion=2 ma
 STRUCT_OUT="${STRUCT_OUT:-$STRUCT_DIR/structures_sweep}"
 # --- LAMMPS ---
 LMP="${LMP:-lmp -k on g 1 -sf kk -pk kokkos newton on neigh half}"   # check against your build's ML-IAP/Kokkos docs
-GPUS="${GPUS:-0 1}"                                  # space-separated GPU ids; systems run in parallel, one per GPU
+GPUS="${GPUS:-1}"                                  # space-separated GPU ids; systems run in parallel, one per GPU
 DEVICE="${DEVICE:-cuda}"
 # Shortened minimization max iterations (200), heating ramp steps (500), and NVT equilibration steps (1000)
-NMIN="${NMIN:-200}"; NHEAT="${NHEAT:-500}"; NEQ="${NEQ:-1000}"
+NMIN="${NMIN:-2000}"; NHEAT="${NHEAT:-5000}"; NEQ="${NEQ:-10000}"
 # Trajectory/thermo dump interval in MD steps (200) and timestep in picoseconds (0.0005 ps = 0.5 fs)
 NDUMP="${NDUMP:-200}"; DT="${DT:-0.0005}"          # DT in ps; must match -var dt in LAMMPS $LMP_INPUT
 # Controls ASE-vs-LAMMPS energy/force equivalence checking ("first" runs once on the first system)
@@ -58,7 +63,7 @@ EQUIV="${EQUIV:-first}"    # first | all | none  (ASE-vs-LAMMPS check)
 EXTXYZ="${EXTXYZ:-0}"     # 0 if your LAMMPS has no `dump extxyz` (converted afterwards)
 # pilot
 # Enables pilot mode (1 = active) with a short 500-step production test and target site classes
-PILOT="${PILOT:-1}"; PILOT_STEPS="${PILOT_STEPS:-500}"; PILOT_SITES="${PILOT_SITES:-vertex edge facet perimeter}"
+PILOT="${PILOT:-1}"; PILOT_STEPS="${PILOT_STEPS:-5000}"; PILOT_SITES="${PILOT_SITES:-vertex edge facet perimeter}"
 ONLY="${ONLY:-}"   # regex: only test systems whose path matches, e.g. "octahedron_019pt|_pt/"
 DRY_RUN="${DRY_RUN:-0}"; SKIP_BUILD="${SKIP_BUILD:-0}"  # Dry-run flag (0 = execute runs) and SKIP_BUILD=1 to reuse existing structures_sweep instead of rebuilding
 OUT="${OUT:-$ROOT/pipeline_runs/$(date +%Y%m%d_%H%M%S)}"

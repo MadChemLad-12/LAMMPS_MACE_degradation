@@ -26,9 +26,9 @@ from ase.neighborlist import neighbor_list
 class Config:
     # ---- Pt nanoparticle ----------------------------------------------------
     np_shape: str = "octahedron"      # octahedron | decahedron | icosahedron | wulff
-    np_sizes_nm: tuple = (0.8, 1.0, 1.15, 1.3, 1.5)   # volume-equivalent diameters, nm
+    np_sizes_nm: tuple = (0.8, 1.2)   # volume-equivalent diameters, nm
     oct_family: str = "any"           # octahedron only: any | truncated | cuboctahedron
-    facet_down: str = "111"           # 111 | 100 | largest  (facet facing the graphene)
+    facet_down: str = "largest"           # 111 | 100 | largest  (facet facing the graphene)
     np_rotate_z: float = 0.0          # degrees about z (align NP with graphene lattice)
     wulff_surfaces: tuple = ((1, 1, 1), (1, 0, 0), (1, 1, 0))
     wulff_energies: tuple = (1.49, 1.73, 1.76)        # relative surface energies -> shape only
@@ -51,7 +51,7 @@ class Config:
     # ---- adsorbate coverage ---
     coverage: float = 0.0          # ML = adsorbates / exposed surface Pt (see below)
     adsorbate: str = "O"           # O | OH
-    ads_site: str = "fcc"          # fcc | hcp | hollow (fcc+hcp) | 4fold | bridge | ontop | mixed
+    ads_site: str = "mixed"          # fcc | hcp | hollow (fcc+hcp) | 4fold | bridge | ontop | mixed
     target: str = "all"            # all | top  (top = only sites above the particle's centre)
     ads_seed: int = 7              # different seed -> different arrangement (use for training diversity)
     ads_pt_clear: float = 2.6      # A, every Pt that does not bind the adsorbate stays this far away
@@ -63,26 +63,28 @@ class Config:
     ads_strict: bool = True   
     
     # ---- Nafion -------------------------------------------------------------
-    nafion_xyz: str = "/home/h.jack/MACE_train/LAMMPS_MACE_degradation/structure_gen/structures/Simple_nafion.xyz"
-    n_nafion: int = 4                 # 0 = no Nafion
-    head_mode: str = "pt"       # graphene | pt | free
+    nafion_xyz: str = "/home/h.jack/MACE_train/LAMMPS_MACE_degradation/structure_gen/Simple_nafion.xyz"
+    #nafion_xyz: str = "/home/h.jack/MACE_train/LAMMPS_MACE_degradation/NAFION_FULL_SINGLE.xyz"
+    #nafion_xyz: str = "/home/h.jack/MACE_train/LAMMPS_MACE_degradation/NAFION_FULL_SINGLE_bent.xyz"
+    n_nafion: int = 6                 # 0 = no Nafion
+    head_mode: str = "free"       # graphene | pt | free
     head_zmax: float = 7.0            # graphene mode: head atoms below z_top_layer + this, A
     head_shell: float = 5.0           # pt mode: head atoms within r_max + this of NP centroid, A
     nafion_density: float = 1.9       # g/cc, only used to estimate excluded volume
 
     # ---- water / packing ----------------------------------------------------
-    tol: float = 2.7                  # Packmol tolerance, A
+    tol: float = 2.5                  # Packmol tolerance, A
     water_above: float = 12.0         # water above NP top, A
     water_floor: float = 2.5          # water starts this far above the top graphene layer, A
-    water_fill: float = 0.50          # fraction of 1 g/cc to pack (slack for NP / Nafion)
+    water_fill: float = 0.85          # fraction of 1 g/cc to pack (slack for NP / Nafion)
     vac: float = 10.0                 # vacuum above the liquid, A
     seed: int = 421
-    run_packmol: bool = False
+    run_packmol: bool = True
 
     # ---- output -------------------------------------------------------------
-    outdir: str = "structures"
+    outdir: str = "structure_gen/structures"
     specorder: tuple = ("Pt", "C", "O", "H", "F", "S")
-    view: bool = True                # ase.visualize.view of each finished system
+    view: bool = False                # ase.visualize.view of each finished system
 
 
 RHO_W = 0.0334          # water molecules / A^3 at 1 g/cc
@@ -589,13 +591,22 @@ def build_one(cfg, d_nm):
           f"{extent(pt, cfg.a_pt)/10:6.2f} {n_removed:5d} {dpc:6.2f} "
           f"{Lx:6.1f}x{Ly:5.1f} {len(system):7d}   contacts<1.5A: {nbad}"
           + (f" (min {dmin:.2f})" if dmin else "") + f"   [{label}]")
+    print(f"Files written to {workdir}/data.lammps ")
+    print(f"    and {workdir}/liquid.xyz ")
+    print("")
 
 
 def main():
     cfg = Config()          # override here if you like, e.g. Config(np_shape="icosahedron")
+    sizes = cfg.np_sizes_nm
+    if isinstance(sizes, (int, float)):
+        sizes = [float(sizes)]
+    else:
+        sizes = [float(x) for x in sizes]
+
     print(f"{'d_req':>5} {'N_Pt':>5} {'d_vol':>6} {'d_ext':>6} {'C_rm':>5} "
           f"{'minPtC':>6} {'cell':>12} {'atoms':>7}")
-    for d in cfg.np_sizes_nm:
+    for d in sizes:
         build_one(cfg, d)
 
 

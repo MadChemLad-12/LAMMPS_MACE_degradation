@@ -48,6 +48,7 @@ def main():
     t0 = time.time() - 2.0
 
     names = {f.name for f in fields(bi.Config)}
+    print(f"Parameters are: {names}")
     over = {}
     for kv in a.set:
         k, v = kv.split("=", 1)
