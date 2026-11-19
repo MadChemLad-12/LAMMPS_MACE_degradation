@@ -12,3 +12,7 @@
 /structure_gen/structures
 /structure_gen/structures_sweep
 /pipeline_runs
+/mace_V11_active_learning.model
+/MACE-LMPV11.pt
+/mace_V11_active_learning.model-lammps.pt
+/mace_V11_active_learning.model-mliap_lammps.pt

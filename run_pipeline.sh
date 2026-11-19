@@ -28,34 +28,39 @@ PIPELINE_ENV="${PIPELINE_ENV:-$ROOT/pipeline.env}"
 if [ -f "$PIPELINE_ENV" ]; then . "$PIPELINE_ENV"; ENV_NOTE="settings file: $PIPELINE_ENV"; else ENV_NOTE=""; fi
 
 # ---------------- CONFIG ------------------------------------------------------
-PYTHON="${PYTHON:-python}"
-STRUCT_DIR="${STRUCT_DIR:-$ROOT/structure_gen}"
-ANALYSIS_DIR="${ANALYSIS_DIR:-$ROOT/analysis}"
-LMP_DIR="${LMP_DIR:-$ROOT/lammps/ptgr_naf}"
-LMP_INPUT="${LMP_INPUT:-$LMP_DIR/ptgr_naf.lmp}"
-MODEL_ASE="${MODEL_ASE:-$ROOT/mace_V11_active_learning.model}"
-MODEL_LMP="${MODEL_LMP:-$ROOT/MACE-LMPV11.pt}"
-HEAD="${HEAD:-}"                                   # head name for multihead models (check_equiv --head)
-# structures
-SIZES="${SIZES:-0.8,1.2,1.6,2.0}"             # nm, volume-equivalent diameters
-COVERAGES="${COVERAGES:-0.0,0.25,0.5}"                # ML (per exposed surface Pt); 0.0 = bare
-SITES="${SITES:-mixed}"                            # fcc|hcp|hollow|4fold|bridge|ontop|mixed
-SEEDS="${SEEDS:-426}"
-HEADS="${HEADS:-pt,graphene}"                                 # Nafion head modes: graphene,pt,free (empty = Config default)
-SETS="${SETS:-}"                                   # extra Config overrides, space separated: "n_nafion=2 margin=7.0"
+PYTHON="${PYTHON:-python}"  # Python executable used to run structure generation, equivalence checks, and analysis scripts
+STRUCT_DIR="${STRUCT_DIR:-$ROOT/structure_gen}" # Directory containing the structure generation scripts (e.g., sweep_build.py)
+ANALYSIS_DIR="${ANALYSIS_DIR:-$ROOT/analysis}" # Directory containing post-run analysis and log-parsing scripts
+LMP_DIR="${LMP_DIR:-$ROOT/lammps/ptgr_naf}" # Directory containing LAMMPS input templates, pair files, and PLUMED setups
+LMP_INPUT="${LMP_INPUT:-$LMP_DIR/ptgr_naf.lmp}" # Main LAMMPS input script path for Pt/graphene/Nafion/water MD simulations
+MODEL_ASE="${MODEL_ASE:-$ROOT/mace_V11_active_learning.model}" # MACE model file used on the Python/ASE side (e.g., for parity/equivalence checking)
+MODEL_LMP="${MODEL_LMP:-$ROOT/mace_V11_active_learning.model-mliap_lammps.pt}" # MACE ML-IAP unified TorchScript model file passed to LAMMPS pair_style mliap unified
+HEAD="${HEAD:-}" # Optional model head name if using a multi-head MACE checkpoint (empty = default/single-head)
+# --- structures ---
+SIZES="${SIZES:-0.8,1.2,1.6,2.0}"  # Target Pt nanoparticle diameters in nanometers (volume-equivalent)
+COVERAGES="${COVERAGES:-0.0,0.25,0.5}"  # Oxygen adsorbate coverages in monolayers (ML) per exposed Pt surface atom; 0.0 = bare Pt
+SITES="${SITES:-mixed}"  # Adsorption site placement mode for oxygen adsorbates on the Pt nanoparticle
+# fcc|hcp|hollow|4fold|bridge|ontop|mixed
+SEEDS="${SEEDS:-426}" 
+HEADS="${HEADS:-pt,graphene}"   # Nafion head modes: graphene,pt,free (empty = Config default)
+SETS="${SETS:-}"       # extra Config overrides, space separated: "n_nafion=2 margin=7.0"
 STRUCT_OUT="${STRUCT_OUT:-$STRUCT_DIR/structures_sweep}"
-# LAMMPS
+# --- LAMMPS ---
 LMP="${LMP:-lmp -k on g 1 -sf kk -pk kokkos newton on neigh half}"   # check against your build's ML-IAP/Kokkos docs
 GPUS="${GPUS:-0 1}"                                  # space-separated GPU ids; systems run in parallel, one per GPU
 DEVICE="${DEVICE:-cuda}"
-NMIN="${NMIN:-2000}"; NHEAT="${NHEAT:-5000}"; NEQ="${NEQ:-10000}"
+# Shortened minimization max iterations (200), heating ramp steps (500), and NVT equilibration steps (1000)
+NMIN="${NMIN:-200}"; NHEAT="${NHEAT:-500}"; NEQ="${NEQ:-1000}"
+# Trajectory/thermo dump interval in MD steps (200) and timestep in picoseconds (0.0005 ps = 0.5 fs)
 NDUMP="${NDUMP:-200}"; DT="${DT:-0.0005}"          # DT in ps; must match -var dt
-EQUIV="${EQUIV:-first}"                            # first | all | none  (ASE-vs-LAMMPS check)
-EXTXYZ="${EXTXYZ:-0}"                              # 0 if your LAMMPS has no `dump extxyz` (converted afterwards)
+# Controls ASE-vs-LAMMPS energy/force equivalence checking ("first" runs once on the first system)
+EQUIV="${EQUIV:-first}"    # first | all | none  (ASE-vs-LAMMPS check)
+EXTXYZ="${EXTXYZ:-0}"     # 0 if your LAMMPS has no `dump extxyz` (converted afterwards)
 # pilot
-PILOT="${PILOT:-0}"; PILOT_STEPS="${PILOT_STEPS:-2000}"; PILOT_SITES="${PILOT_SITES:-vertex edge facet perimeter}"
-ONLY="${ONLY:-}"                                   # regex: only test systems whose path matches, e.g. "octahedron_019pt|_pt/"
-DRY_RUN="${DRY_RUN:-0}"; SKIP_BUILD="${SKIP_BUILD:-0}"
+# Enables pilot mode (1 = active) with a short 500-step production test and target site classes
+PILOT="${PILOT:-1}"; PILOT_STEPS="${PILOT_STEPS:-500}"; PILOT_SITES="${PILOT_SITES:-vertex edge facet perimeter}"
+ONLY="${ONLY:-}"   # regex: only test systems whose path matches, e.g. "octahedron_019pt|_pt/"
+DRY_RUN="${DRY_RUN:-0}"; SKIP_BUILD="${SKIP_BUILD:-1}"  # Dry-run flag (0 = execute runs) and SKIP_BUILD=1 to reuse existing structures_sweep instead of rebuilding
 OUT="${OUT:-$ROOT/pipeline_runs/$(date +%Y%m%d_%H%M%S)}"
 # -------------------------------------------------------------------------------
 
@@ -98,6 +103,26 @@ for f in "$STRUCT_DIR/sweep_build.py" "$STRUCT_DIR/build_interface.py" "$STRUCT_
 done
 if [ "$DRY_RUN" = 0 ]; then
   for f in "$MODEL_ASE" "$MODEL_LMP"; do [ -f "$f" ] || { say "MISSING model: $f (dvc pull?)"; fail_pre=1; }; done
+  if [ -f "$MODEL_LMP" ]; then
+    # 'pair_style mliap unified' needs a pickled ML-IAP object; a TorchScript archive (the 'libtorch' format used by
+    # pair_style mace) has constants.pkl inside its zip and fails with "no attribute 'ndescriptors'"
+    MFMT="$("$PYTHON" - "$MODEL_LMP" <<'PY'
+import sys, zipfile
+try:
+    names = zipfile.ZipFile(sys.argv[1]).namelist()
+except Exception:
+    print("unreadable"); sys.exit()
+print("torchscript" if any(n.endswith("constants.pkl") for n in names) else "pickle")
+PY
+)"
+    case "$MFMT" in
+      torchscript)
+        say "ERROR: MODEL_LMP ($MODEL_LMP) is a TorchScript/libtorch model, but pair_style mliap unified needs the ML-IAP format."
+        say "   convert:  python -m mace.cli.create_lammps_model <your>.model --format=mliap    (writes <your>.model-mliap_lammps.pt)"
+        fail_pre=1 ;;
+      unreadable) say "WARNING: could not inspect $MODEL_LMP (not a zip/torch file?)" ;;
+    esac
+  fi
 fi
 "$PYTHON" - <<'PY' || fail_pre=1
 import importlib.util, sys
@@ -241,6 +266,25 @@ PY
 read -r -a GPU_LIST <<< "$GPUS"
 NG=${#GPU_LIST[@]}
 say "running ${#DATAFILES[@]} systems on GPU(s): ${GPU_LIST[*]}  (dry-run=$DRY_RUN, equivalence=$EQUIV, pilot=$PILOT)"
+# one quick model-load + 1-step test on the first structure: stops the sweep at once if the model/pair_style/Kokkos
+# setup is broken, instead of failing 24 times
+if [ "${SKIP_PRETEST:-0}" != 1 ]; then
+  PRE="$OUT/_pretest"; mkdir -p "$PRE"
+  say "pretest: model load + 1 MD step on $(basename "$(dirname "${DATAFILES[0]}")")"
+  ( cd "$PRE" && CUDA_VISIBLE_DEVICES="${GPU_LIST[0]}" $LMP -in "$LMP_INPUT" -log pretest.log -screen pretest.screen \
+      -var data "${DATAFILES[0]}" -var model "$MODEL_LMP" -var pairfile "$PAIRFILE" -var tag pre \
+      -var nmin 0 -var nheat 0 -var neq 1 -var nprod 0 -var useplumed 0 -var ndump 1 -var extxyz "$EXTXYZ" \
+      $EXTRA_VARS > pretest.stdout 2>&1 )
+  if [ $? -ne 0 ] || grep -q "^ERROR" "$PRE/pretest.screen" 2>/dev/null; then
+    say "PRETEST FAILED - not starting the sweep. Details in $PRE/pretest.screen and pretest.stdout:"
+    { grep -h -m2 "^ERROR" "$PRE/pretest.screen" "$PRE/pretest.stdout"; grep -h -E "Error|error:" "$PRE/pretest.stdout" | tail -3; } 2>/dev/null | sed 's/^/   /' | tee -a "$LOG"
+    if grep -qE "ndescriptors|TorchScript" "$PRE/pretest.stdout" "$PRE/pretest.screen" 2>/dev/null; then
+      say "   -> the model file is not in ML-IAP format: python -m mace.cli.create_lammps_model <model> --format=mliap"
+    fi
+    exit 1
+  fi
+  say "pretest ok"
+fi
 i=0
 for data in "${DATAFILES[@]}"; do
   gpu="${GPU_LIST[$((i % NG))]}"

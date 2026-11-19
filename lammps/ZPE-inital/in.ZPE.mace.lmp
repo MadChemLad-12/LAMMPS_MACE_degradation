@@ -42,7 +42,7 @@ write_dump      all custom test_step0.lammpstrj id type x y z fx fy fz modify so
 
 # --- 2. short relaxation ---
 print           ">>> relax"
-min_style       cg
+min_style       cg/kk
 minimize        1e-8 0.1 50 500
 
 # --- 3. short NVT, 100 -> 300 K ---

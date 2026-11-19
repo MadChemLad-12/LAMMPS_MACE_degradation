@@ -52,7 +52,7 @@ thermo_style    custom step time temp pe ke etotal
 thermo_modify   flush yes
 
 # ---- 1. minimise (no dumps; step counter restarts at 0 afterwards) ----------------------
-if "${nmin} > 0" then "min_style fire" "minimize 1e-6 1e-8 ${nmin} $(10*v_nmin)" "write_data ${tag}_min.data"
+if "${nmin} > 0" then "min_style cg/kk" "minimize 1e-6 1e-8 ${nmin} $(10*v_nmin)" "write_data ${tag}_min.data"
 if "${userestart} == 0" then "reset_timestep 0"
 
 # ---- output (MD stages only) -----------------------------------------------------------

@@ -1,0 +1,5 @@
+outs:
+- md5: 603618736e98baa65de5451b00ee1634
+  size: 38726587
+  hash: md5
+  path: mace_V11_active_learning.model

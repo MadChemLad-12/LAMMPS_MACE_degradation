@@ -1,0 +1,5 @@
+outs:
+- md5: 68e56b2274af23dbd17a346fff579cdf
+  size: 70671789
+  hash: md5
+  path: mace_V11_active_learning.model-mliap_lammps.pt

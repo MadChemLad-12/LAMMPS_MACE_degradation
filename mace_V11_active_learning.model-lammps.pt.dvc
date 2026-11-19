@@ -1,0 +1,5 @@
+outs:
+- md5: a2d6c403a3ffd81692005098bf817569
+  size: 77286792
+  hash: md5
+  path: mace_V11_active_learning.model-lammps.pt
