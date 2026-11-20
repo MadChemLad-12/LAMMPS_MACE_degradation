@@ -12,6 +12,8 @@ Sub-commands (each writes PNG/CSV files next to --out):
   fes      free energy from PLUMED HILLS (well-tempered): 2D map, 1D projection, and the
            attached-vs-detached free-energy difference vs simulated time = CONVERGENCE check:
                                                        analyze_run.py fes HILLS.0 HILLS.1 --bias-factor 15 --temp 353
+  bonds    bond-length statistics of the Nafion bonds by type (is the SO3 'stretching' you see in a viewer thermal motion?):
+                                                       analyze_run.py bonds run.extxyz --out run
   convert  fallback if your LAMMPS has no `dump extxyz`: lammpstrj -> extxyz (with forces and Timestep):
                                                        analyze_run.py convert run.lammpstrj --out run.extxyz
   merge    attach COLVAR values + energy/forces to the extxyz frames (for picking frames by CV
@@ -143,7 +145,10 @@ def groups_from_first(at, n_graphene):
     ptO[i[(sym[i] == "O") & isPt[j] & (d < 2.5)]] = True
     Oads = (sym == "O") & ~Os & ptO & (nH <= 1)
     Ow = (sym == "O") & ~Os & ~Oads & ~nafion
-    return dict(sym=sym, pt=pt, gr=gr, nafion=nafion, bonds=np.array([(x, y) for x, y, _ in pairs]),
+    bonds = np.array([(x, y) for x, y, _ in pairs])
+    is_oh = np.array([{sym[x], sym[y]} == {"O", "H"} for x, y, _ in pairs], bool) if len(pairs) else np.zeros(0, bool)
+    btype = np.array(["-".join(sorted((sym[x], sym[y]))) for x, y, _ in pairs]) if len(pairs) else np.zeros(0, str)
+    return dict(sym=sym, pt=pt, gr=gr, nafion=nafion, bonds=bonds, bond_is_oh=is_oh, bond_type=btype,
                 bond_r0=np.array([dd for _, _, dd in pairs]), isS=isS, Os=Os, Oads=Oads, Ow=Ow)
 
 
@@ -174,16 +179,19 @@ def frame_metrics(at, G, pt_cut=3.2):
 
     all_O = sym == "O"
     cnO = np.bincount(i2[isPt[i2] & all_O[j2] & (d2 < 2.7)], minlength=n)[G["pt"]]
-    brk = 0
+    brk = brk_oh = 0
     if len(G["bonds"]):
         dd = at.get_distances(G["bonds"][:, 0], G["bonds"][:, 1], mic=True)
-        brk = int((dd > 1.3 * G["bond_r0"] + 0.25).sum())
+        broken = dd > 1.3 * G["bond_r0"] + 0.25
+        brk = int(broken.sum())
+        brk_oh = int((broken & G["bond_is_oh"]).sum())   # sulfonic-acid O-H: proton transfer to water, not decomposition
     p = at.positions[G["pt"]]
     return dict(pt_cn_mean=cn.mean(), pt_cn_min=int(cn.min()), pt_detached=int((cn == 0).sum()),
                 pt_rg=float(np.sqrt(((p - p.mean(0)) ** 2).sum(1).mean())),
                 pt_c_contacts=int((dC < 2.8).sum()), pt_c_min=float(dC.min()), pt_s_min=float(dS.min()),
                 n_Os_on_Pt=contacts(G["Os"]), n_Oads_on_Pt=contacts(G["Oads"]), n_Ow_on_Pt=contacts(G["Ow"]),
-                pt_O_cn_mean=float(cnO.mean()), nafion_broken=brk)
+                pt_O_cn_mean=float(cnO.mean()), nafion_broken=brk,
+                nafion_broken_OH=brk_oh, nafion_broken_other=brk - brk_oh)
 
 
 def cmd_traj(a):
@@ -226,13 +234,17 @@ def cmd_traj(a):
     if arr["pt_detached"].max() > 0:
         k0 = int(np.argmax(arr["pt_detached"] > 0))
         flags.append(f"Pt atom(s) with no Pt neighbour from t = {t[k0]:.2f} ps (max {int(arr['pt_detached'].max())})")
-    if arr["nafion_broken"].max() > 0:
-        flags.append(f"Nafion bonds broken in some frames (max {int(arr['nafion_broken'].max())}) - unphysical unless intended")
+    if arr["nafion_broken_other"].max() > 0:
+        flags.append(f"Nafion bonds other than O-H broken in some frames (max {int(arr['nafion_broken_other'].max())}) - backbone/side-chain "
+                     "damage: unphysical unless intended")
+    if arr["nafion_broken_OH"].max() > 0:
+        flags.append(f"info: up to {int(arr['nafion_broken_OH'].max())} sulfonic-acid O-H bonds dissociated (proton transfer to water; expected for "
+                     f"-SO3H in water, compare with the {int(G['Os'].sum() // 3) if G['Os'].sum() else 0} sulfonate groups)")
     print("FLAGS: " + ("; ".join(flags) if flags else "none"))
     plt = plt_()
     panels = [("pt_cn_mean", "mean Pt-Pt CN"), ("pt_detached", "Pt with CN=0"), ("pt_c_contacts", "Pt within 2.8 A of C"),
               ("pt_s_min", "closest S to Pt (A)"), ("n_Os_on_Pt", "sulfonate O on Pt"), ("n_Ow_on_Pt", "water O on Pt"),
-              ("n_Oads_on_Pt", "adsorbed O/OH on Pt"), ("nafion_broken", "Nafion bonds broken"), ("E_eV", "potential energy (eV)")]
+              ("n_Oads_on_Pt", "adsorbed O/OH on Pt"), ("nafion_broken_other", "Nafion non-O-H bonds broken"), ("E_eV", "potential energy (eV)")]
     fig, ax = plt.subplots(3, 3, figsize=(13, 8), sharex=True)
     for x, (k, lab) in zip(ax.ravel(), panels):
         x.plot(t, arr[k], lw=1)
@@ -446,6 +458,48 @@ def cmd_merge(a):
           f"CV keys: {[k.replace('.', '_') for k in keys]}")
 
 
+def cmd_bonds(a):
+    """bond-length statistics of the Nafion bonds over a trajectory, by bond type (C-F, C-S, O-S, C-O, C-C, H-O ...)."""
+    from ase.io import iread
+    first, G, L = None, None, None
+    for k, at in enumerate(iread(a.traj, index=f"{a.start}::{a.stride}")):
+        if first is None:
+            first = at
+            G = groups_from_first(at, a.n_graphene)
+            L = {t: [] for t in sorted(set(G["bond_type"]))}
+            worst = {t: (0.0, -1, -1) for t in L}
+            r0 = {t: G["bond_r0"][G["bond_type"] == t].mean() for t in L}
+        dd = at.get_distances(G["bonds"][:, 0], G["bonds"][:, 1], mic=True)
+        step = at.info.get("Timestep", k)
+        for t in L:
+            m = G["bond_type"] == t
+            L[t].append(dd[m])
+            j = int(np.argmax(dd[m]))
+            if dd[m][j] > worst[t][0]:
+                worst[t] = (float(dd[m][j]), int(step), int(np.where(m)[0][j]))
+    n = len(next(iter(L.values())))
+    print(f"{n} frames, {len(G['bonds'])} tracked Nafion bonds (bonded at the first frame)")
+    print(f"{'type':<6}{'N':>4}{'mean A':>8}{'sd':>7}{'99.9%':>8}{'max':>7}{'frames with a bond > mean+0.3 A':>34}   worst (step, atoms)")
+    for t, arr in L.items():
+        x = np.array(arr)                     # frames x bonds
+        mean = x.mean()
+        frac = (x.max(axis=1) > mean + 0.3).mean()
+        w = worst[t]
+        pair = G["bonds"][w[2]] + 1 if w[2] >= 0 else ("-", "-")
+        print(f"{t:<6}{x.shape[1]:>4}{mean:>8.3f}{x.std():>7.3f}{np.percentile(x, 99.9):>8.3f}{x.max():>7.3f}{100 * frac:>33.1f}%   ({w[1]}, atoms {pair[0]},{pair[1]})")
+    plt = plt_()
+    fig, ax = plt.subplots(1, len(L), figsize=(2.8 * len(L), 3), squeeze=False)
+    for x_, (t, arr) in zip(ax[0], L.items()):
+        x_.hist(np.array(arr).ravel(), bins=60, log=True)
+        x_.set_title(t, fontsize=9)
+        x_.set_xlabel("length (A)")
+    fig.tight_layout()
+    fig.savefig(a.out + "_bonds.png", dpi=140)
+    print(f"wrote {a.out}_bonds.png")
+    print("Reading it: a bond that stretches and returns is thermal motion if its max stays within a few tenths of an A of the mean; "
+          "a long tail (max >> 99.9%, or lengths above ~2 A for S-O / C-S) would mean the model lets the bond break.")
+
+
 def cmd_convert(a):
     from ase.io import iread, write
     steps = []
@@ -507,6 +561,13 @@ def main():
     p.add_argument("--detached-cn", type=float, default=1.0)
     p.add_argument("--fmax", type=float, default=3.0)
     p.set_defaults(f=cmd_fes)
+    p = sub.add_parser("bonds")
+    p.add_argument("traj")
+    p.add_argument("--out", default="run")
+    p.add_argument("--start", type=int, default=0)
+    p.add_argument("--stride", type=int, default=1)
+    p.add_argument("--n-graphene", type=int, default=None)
+    p.set_defaults(f=cmd_bonds)
     p = sub.add_parser("convert")
     p.add_argument("traj")
     p.add_argument("--out", default="converted.extxyz")
