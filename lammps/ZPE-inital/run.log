@@ -1,0 +1,26 @@
+LAMMPS (30 Sep 2026 - Development - patch_30Sep2026-873-g80e27a7117)
+sys:1: UserWarning: 'torch.load' received a zip file that looks like a TorchScript archive dispatching to 'torch.jit.load' (call 'torch.jit.load' directly to silence this warning)
+KOKKOS mode with Kokkos version 5.2.1 is enabled
+  using double precision
+  using view layout = legacy
+  will use up to 1 GPU(s) per node
+  using 1 OpenMP thread(s) per MPI task
+Reading data file ...
+  orthogonal box = (0 0 0) to (22.14 21.304225 42.163426)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  1225 atoms
+  read_data CPU = 0.008 seconds
+Traceback (most recent call last):
+  File "mliap_unified_couple_kokkos.pyx", line 512, in mliap_unified_couple_kokkos.mliap_unified_connect_kokkos
+  File "/home/h.jack/miniconda3/envs/lmp_mace/lib/python3.11/site-packages/torch/jit/_script.py", line 865, in __getattr__
+    return super().__getattr__(attr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/h.jack/miniconda3/envs/lmp_mace/lib/python3.11/site-packages/torch/jit/_script.py", line 555, in __getattr__
+    return super().__getattr__(attr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/h.jack/miniconda3/envs/lmp_mace/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1968, in __getattr__
+    raise AttributeError(
+AttributeError: 'RecursiveScriptModule' object has no attribute 'ndescriptors'
+ERROR: Running mliappy unified module failure. (src/KOKKOS/mliap_unified_kokkos.cpp:241)
+Last input line: pair_style mliap unified ${model} 0
