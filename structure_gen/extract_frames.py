@@ -117,13 +117,13 @@ def write_plain_xyz(path, at, comment):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("traj")
-    ap.add_argument("--outdir", default="sp_frames")
-    ap.add_argument("--mode", default="uniform", choices=["uniform", "stride", "random", "fps", "events"])
+    ap.add_argument("--outdir", default="extracted_frames")
+    ap.add_argument("--mode", default="random", choices=["uniform", "stride", "random", "fps", "events"])
     ap.add_argument("--n", type=int, default=50, help="number of frames (uniform/random/fps; cap for events)")
     ap.add_argument("--start", type=int, default=0, help="first source frame (e.g. skip equilibration)")
     ap.add_argument("--stop", type=int, default=None)
     ap.add_argument("--stride", type=int, default=1)
-    ap.add_argument("--format", default=None, help="ASE format, e.g. extxyz, lammps-dump-text")
+    ap.add_argument("--format", default="extxyz", help="ASE format, e.g. extxyz, lammps-dump-text")
     ap.add_argument("--specorder", default=None, help="LAMMPS dump: element per atom type, e.g. Pt,C,O,H,F,S")
     ap.add_argument("--min-dmin-ratio", type=float, default=0.70)
     ap.add_argument("--max-fmax", type=float, default=None)
@@ -134,7 +134,7 @@ def main():
     ap.add_argument("--window", type=int, default=2, help="events: sampled frames kept before/after each event")
     ap.add_argument("--wrap", action="store_true", help="wrap atoms into the cell (default: keep as stored)")
     ap.add_argument("--combined", action="store_true", help="also write one multi-frame xyz")
-    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--seed", type=int, default=420)
     args = ap.parse_args()
 
     kw = {}

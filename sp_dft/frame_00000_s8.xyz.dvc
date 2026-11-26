@@ -1,0 +1,5 @@
+outs:
+- md5: 83000e23765779cf0ddc4d60e5381919
+  size: 53523
+  hash: md5
+  path: frame_00000_s8.xyz

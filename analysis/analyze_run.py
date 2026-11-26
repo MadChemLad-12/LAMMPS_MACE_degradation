@@ -103,8 +103,19 @@ def cmd_log(a):
     c = {n: k for k, n in enumerate(blocks[-1]["cols"])}
     h = len(last) // 2
     if h:
-        print(f"last block, second half: T = {last[h:, c['Temp']].mean():.1f} +- {last[h:, c['Temp']].std():.1f} K, "
-              f"PE drift over the block = {last[-1, c['PotEng']] - last[0, c['PotEng']]:.3f} eV")
+        dpe = last[-1, c['PotEng']] - last[0, c['PotEng']]
+        txt = f"last block, second half: T = {last[h:, c['Temp']].mean():.1f} +- {last[h:, c['Temp']].std():.1f} K, PE drift over the block = {dpe:.3f} eV"
+        nat = None
+        for line in open(a.log, errors="replace"):
+            m = re.match(r"\s*(\d+) atoms\s*$", line)
+            if m:
+                nat = int(m.group(1))
+                break
+        dtp = (last[-1, c["Step"]] - last[0, c["Step"]]) * a.dt_fs / 1000.0
+        if nat and dtp > 0:
+            txt += f" = {1000 * dpe / nat:.1f} meV/atom over {dtp:.0f} ps ({dpe / dtp:.3f} eV/ps)"
+        print(txt)
+        print("   (a converged block drifts by about the size of its own fluctuations; a steady downward slope means the system is still relaxing)")
     print(f"wrote {a.out}_thermo.png")
     print("NVT: total energy is NOT conserved (thermostat). Judge stability by T staying at the target, PE "
           "plateauing after equilibration and no spikes.")
@@ -206,6 +217,9 @@ def cmd_traj(a):
             print(f"{len(at)} atoms | Pt {len(G['pt'])} | graphene C {len(G['gr'])} | Nafion atoms "
                   f"{int(G['nafion'].sum())} ({len(G['bonds'])} bonds tracked) | sulfonate O {int(G['Os'].sum())}, "
                   f"adsorbed O {int(G['Oads'].sum())}, water O {int(G['Ow'].sum())}")
+            nso3 = G["Os"].sum() / 3.0
+            if nso3 > 0:
+                print(f"water per sulfonate group (lambda) = {int(G['Ow'].sum())}/{nso3:.0f} = {G['Ow'].sum() / nso3:.1f}")
             zgr = at.positions[G["gr"], 2].max()
         step = at.info.get("Timestep", a.start + k * a.stride)
         m = frame_metrics(at, G)
@@ -224,12 +238,17 @@ def cmd_traj(a):
     t = np.array([r["time_ps"] for r in rows])
     arr = {k: np.array([r[k] for r in rows], float) for k in keys}
     h2 = len(t) // 2
-    print(f"\n{len(t)} frames, {t[0]:.2f}-{t[-1]:.2f} ps  (mean +- sd over the second half)")
+    q = len(t) // 4
+    print(f"\n{len(t)} frames, {t[0]:.2f}-{t[-1]:.2f} ps | means of the first half and of the last two quarters; sd of the last quarter")
+    print(f"  {'metric':<20}{'1st half':>10}{'3rd qtr':>10}{'4th qtr':>10}{'sd 4th':>9}   still evolving at the end?")
     for k in keys[:-3] + ["E_eV"]:
         if k in ("step", "time_ps"):
             continue
-        v = arr[k][h2:]
-        print(f"  {k:<16}{v.mean():>10.3f} +- {v.std():.3f}   [first {arr[k][0]:.3f}, last {arr[k][-1]:.3f}]")
+        v1, v3, v4 = arr[k][:2 * q], arr[k][2 * q:3 * q], arr[k][3 * q:]
+        if min(len(v1), len(v3), len(v4)) == 0:
+            continue
+        drift = abs(v4.mean() - v3.mean()) > max(v4.std(), 1e-6)
+        print(f"  {k:<20}{v1.mean():>10.3f}{v3.mean():>10.3f}{v4.mean():>10.3f}{v4.std():>9.3f}   {'* 3rd and 4th quarter differ by more than the sd' if drift else ''}")
     flags = []
     if arr["pt_detached"].max() > 0:
         k0 = int(np.argmax(arr["pt_detached"] > 0))
@@ -265,6 +284,11 @@ def cmd_traj(a):
           xlim=(-2, 40))
     fig.tight_layout()
     fig.savefig(a.out + "_zdensity.png", dpi=140)
+    n_w = int(G["Ow"].sum())
+    film = n_w / (area * 0.0334) if area > 0 else 0.0     # thickness the waters would have at liquid density (0.0334 molecules/A^3)
+    if film < 12.0:
+        print(f"NOTE: {n_w} water molecules make a film of only ~{film:.1f} A at liquid density, so there is no bulk-like water "
+              "region and the density line below is not meaningful for this system (it is a check for thick water layers).")
     core = (zc - zgr > a.bulk_lo) & (zc - zgr < a.bulk_hi)
     print(f"water density in z = {a.bulk_lo:.0f}-{a.bulk_hi:.0f} A above graphene: {dens[core].mean():.2f} g/cm3 "
           f"(dotted line = 0.97, ~PBE-D3 water is NOT guaranteed to match; this is a sanity check, and the region "

@@ -72,7 +72,7 @@ python analyze_run.py log md.log [--nprod 4000000] [--dt-fs 0.5] [--out md]
 2. Prints speed for each `run`: steps/s, ns/day, hours per ns.
 3. If you pass `--nprod N`, prints how long N production steps would take at the last measured speed.
 4. Plots temperature and potential energy for all blocks end to end.
-5. For the **last block** prints the mean ± sd of temperature over its second half and the **potential-energy drift** (last row minus first row of the block).
+5. For the **last block** prints the mean ± sd of temperature over its second half and the **potential-energy drift** (last row minus first row of the block), also per atom and per ps when the atom count can be read from the log.
 
 **Output:** `<out>_thermo.png`, plus the printed lines.
 
@@ -80,7 +80,7 @@ python analyze_run.py log md.log [--nprod 4000000] [--dt-fs 0.5] [--out md]
 
 - `last run speed` is the number that sets your production budget. 1 ns = 2×10⁶ steps at 0.5 fs.
 - Temperature should sit at the target (353 K) with a spread of a few percent for ~1,000 atoms.
-- A large negative potential-energy drift (for example −7 eV over a block of ~1,000 atoms) means the system is **still relaxing**: it is not equilibrated yet. A converged block drifts by about as much as its own noise.
+- A large negative potential-energy drift (for example −10 eV over 100 ps for ~800 atoms, which is about 12 meV/atom and 0.1 eV/ps) means the system is **still relaxing**: it is not equilibrated yet. A converged block drifts by about as much as its own fluctuations.
 - NVT does not conserve total energy (the thermostat adds and removes energy), so do not look for that.
 
 **Caveat:** only the thermo tables are read. The timing and histogram tables LAMMPS prints at the end of each run are ignored (an early version of `summarize_pipeline.py` mis-read them and reported a wrong temperature; that is fixed).
@@ -102,7 +102,7 @@ python analyze_run.py traj md.extxyz [--out md] [--dt 0.0005] [--start 0] [--str
 2. For each frame computes the metrics in the table below.
 3. Writes them to a CSV and plots them.
 4. Averages the water O height distribution over the **second half** of the frames and plots a water density profile.
-5. Prints the mean ± sd of every metric over the second half and a `FLAGS:` line.
+5. Prints, for every metric, the mean over the **first half**, the **third quarter** and the **fourth quarter** of the frames, and the sd of the fourth quarter. A `*` marks a metric whose last two quarters differ by more than that sd: it is **still evolving at the end of the run** (a change that happened early and then stopped, such as a contact count settling, is not flagged). It also prints the water per sulfonate group (λ) and a `FLAGS:` line.
 
 **Outputs**
 
@@ -142,7 +142,7 @@ The bond threshold is *length > 1.3 × (length at frame 0) + 0.25 Å*. Bonds are
 
 **The water density line**
 
-The profile counts water O in 0.25 Å height bins, divided by the cell *area* (not volume), converted to g/cm³. The dotted line is 0.97. Because the cell includes vacuum and the Pt particle's volume, the number is a *sanity check*, not a bulk density. Flat plateaus between layering peaks near the graphene are what you want to see.
+The profile counts water O in 0.25 Å height bins, divided by the cell *area* (not volume), converted to g/cm³. The dotted line is 0.97. Because the cell includes vacuum and the Pt particle's volume, the number is a *sanity check*, not a bulk density. For a thick water layer you want a flat plateau between layering peaks near the graphene. **If there are few waters** (for example 75 molecules ≈ a film of about 5 Å at liquid density) there is no bulk-like region at all; the script then prints a NOTE and the density line should be ignored. In that case the water per sulfonate group (λ) is the meaningful number.
 
 **Caveats**
 
